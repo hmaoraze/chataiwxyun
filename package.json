@@ -1,0 +1,10 @@
+{
+  "name": "edgeone-deepseek-memory-bot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "EdgeOne Makers 上的 DeepSeek 带记忆对话服务与配置后台",
+  "scripts": {
+    "dev": "edgeone pages dev"
+  }
+}

@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>DeepSeek 记忆机器人 · 控制台</title>
+    <link rel="stylesheet" href="/assets/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">DS</div>
+        <div class="brand-text">
+          <h1>DeepSeek 记忆机器人</h1>
+          <p>EdgeOne 边缘函数 · 管理控制台</p>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <span id="status-pill" class="pill">检查中</span>
+        <button id="btn-logout" class="btn btn-ghost hidden" type="button">退出登录</button>
+      </div>
+    </header>
+
+    <main class="main">
+      <section id="view-loading" class="view">
+        <div class="loading-card">
+          <span class="spinner"></span>
+          <p>正在检查运行状态…</p>
+        </div>
+      </section>
+
+      <section id="view-auth" class="view hidden">
+        <div class="auth-card card">
+          <span class="eyebrow">免密码登录</span>
+          <h2>使用安全密钥进入控制台</h2>
+          <p class="muted">
+            本控制台不保存账号密码，使用设备内置的指纹、面容识别或硬件安全密钥（Passkey）验证身份。
+          </p>
+          <button id="btn-login" class="btn btn-primary btn-block" type="button">
+            使用 Passkey 登录
+          </button>
+          <div id="auth-notice" class="notice hidden"></div>
+          <details class="help">
+            <summary>首次配置如何进入？</summary>
+            <p>
+              在 EdgeOne 项目中设置环境变量 <code>BOOTSTRAP_TOKEN</code>，然后访问
+              <code>/setup?token=你的令牌</code>。完成后该链接立即失效；之后可在
+              “安全密钥”页面生成新的一次性配置链接。
+            </p>
+          </details>
+        </div>
+      </section>
+
+      <section id="view-setup" class="view hidden">
+        <div class="auth-card card">
+          <span class="eyebrow">首次配置</span>
+          <h2>注册安全密钥</h2>
+          <p class="muted">
+            安全链接校验通过后，请为控制台注册第一个 Passkey。注册成功后，该链接立即失效。
+          </p>
+          <label class="field">
+            <span>密钥名称</span>
+            <input id="setup-label" type="text" maxlength="60" value="主安全密钥" />
+          </label>
+          <button id="btn-setup-register" class="btn btn-primary btn-block" type="button">
+            注册安全密钥
+          </button>
+          <ul id="setup-log" class="log"></ul>
+          <div id="setup-error" class="notice notice-danger hidden"></div>
+        </div>
+      </section>
+
+      <section id="view-app" class="view hidden">
+        <div class="layout">
+          <aside class="sidebar">
+            <nav id="tabs" class="tabs">
+              <button class="tab is-active" data-tab="overview" type="button">概览</button>
+              <button class="tab" data-tab="required" type="button">必填配置</button>
+              <button class="tab" data-tab="model" type="button">模型与提示词</button>
+              <button class="tab" data-tab="memory-config" type="button">记忆引擎</button>
+              <button class="tab" data-tab="session-config" type="button">会话策略</button>
+              <button class="tab" data-tab="wechat" type="button">微信机器人</button>
+              <button class="tab" data-tab="security" type="button">安全密钥</button>
+              <button class="tab" data-tab="memories" type="button">记忆库</button>
+              <button class="tab" data-tab="sessions" type="button">会话记录</button>
+              <button class="tab" data-tab="chat" type="button">对话测试</button>
+            </nav>
+            <div id="sidebar-meta" class="sidebar-meta"></div>
+          </aside>
+
+          <div class="content">
+            <section id="panel-overview" class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2>运行概览</h2>
+                  <p class="muted">配置、存储与记忆状态一览。</p>
+                </div>
+                <button class="btn btn-ghost" data-action="refresh-overview" type="button">
+                  刷新
+                </button>
+              </div>
+              <div id="required-banner" class="banner hidden"></div>
+              <div id="overview-cards" class="stat-grid"></div>
+              <div class="grid two">
+                <div class="card">
+                  <h3>配置检查</h3>
+                  <ul id="required-list" class="check-list"></ul>
+                </div>
+                <div class="card">
+                  <h3>运行信息</h3>
+                  <dl id="overview-meta" class="meta-list"></dl>
+                </div>
+              </div>
+              <div class="card">
+                <h3>连通性测试</h3>
+                <p class="muted">依次测试存储、DeepSeek 与微信 iLink 接口，结果仅用于配置确认。</p>
+                <button class="btn" data-action="test-all" type="button">测试全部</button>
+                <ul id="test-results" class="list"></ul>
+              </div>
+            </section>
+
+            <section id="panel-required" class="panel hidden">
+              <form id="form-required" class="card form" autocomplete="off">
+                <div class="card-head">
+                  <div>
+                    <h2>必填配置</h2>
+                    <p class="muted">带 <b class="req">*</b> 的项目必须完成，否则对话接口会拒绝服务。</p>
+                  </div>
+                  <span id="required-progress" class="badge"></span>
+                </div>
+
+                <div class="grid two">
+                  <label class="field">
+                    <span>DeepSeek API Key <b class="req">*</b></span>
+                    <input
+                      type="password"
+                      data-path="deepseek.apiKey"
+                      placeholder="sk-..."
+                      autocomplete="new-password"
+                    />
+                    <small class="hint" data-hint="deepseek.apiKey"></small>
+                  </label>
+                  <label class="field">
+                    <span>API Base URL</span>
+                    <input type="url" data-path="deepseek.baseUrl" placeholder="https://api.deepseek.com" />
+                  </label>
+                  <label class="field">
+                    <span>模型</span>
+                    <select data-path="deepseek.model">
+                      <option value="deepseek-chat">deepseek-chat</option>
+                      <option value="deepseek-reasoner">deepseek-reasoner</option>
+                    </select>
+                  </label>
+                  <label class="field">
+                    <span>每分钟请求上限</span>
+                    <input type="number" data-path="api.rateLimitPerMinute" min="1" max="600" step="1" />
+                  </label>
+                  <label class="field">
+                    <span>服务访问令牌 <b class="req">*</b></span>
+                    <div class="row tight">
+                      <input type="password" data-path="api.serviceToken" placeholder="留空保持现有令牌" />
+                      <button class="btn btn-ghost" data-action="rotate-token" type="button">
+                        生成新令牌
+                      </button>
+                    </div>
+                    <small class="hint" data-hint="api.serviceToken"></small>
+                  </label>
+                  <label class="check field-check">
+                    <input type="checkbox" data-path="api.allowAdminSessionForApi" />
+                    允许管理员会话直接调用业务接口
+                  </label>
+                </div>
+                <label class="check">
+                  <input type="checkbox" data-clear="deepseek.apiKey" />
+                  清除已保存的 DeepSeek API Key
+                </label>
+                <label class="check">
+                  <input type="checkbox" data-clear="api.serviceToken" />
+                  清除已保存的服务访问令牌
+                </label>
+
+                <div id="token-once" class="secret-box hidden"></div>
+
+                <label class="field">
+                  <span>前置提示词（人设、规则与输出约束）<b class="req">*</b></span>
+                  <textarea
+                    data-path="prompt.systemPrompt"
+                    rows="8"
+                    maxlength="20000"
+                    placeholder="例如：你是一名耐心的中文助手，回答简洁、准确，不编造事实；始终使用简体中文。"
+                  ></textarea>
+                  <small class="hint">
+                    每轮请求都会固定携带这段内容，放在系统消息的最高优先级位置，历史裁剪不会影响它。
+                  </small>
+                </label>
+
+                <fieldset class="group">
+                  <legend>存储</legend>
+                  <div class="grid two">
+                    <label class="field">
+                      <span>存储驱动 <b class="req">*</b></span>
+                      <select data-path="storage.driver">
+                        <option value="kv">EdgeOne KV（推荐）</option>
+                        <option value="redis">Upstash Redis REST</option>
+                        <option value="memory">仅进程内存（不推荐）</option>
+                      </select>
+                    </label>
+                    <label class="field">
+                      <span>KV 绑定变量名</span>
+                      <input type="text" data-path="storage.kvBinding" placeholder="chat_kv" />
+                    </label>
+                    <label class="field">
+                      <span>Redis REST 地址</span>
+                      <input type="url" data-path="storage.redisUrl" placeholder="https://xxx.upstash.io" />
+                    </label>
+                    <label class="field">
+                      <span>Redis Token</span>
+                      <input type="password" data-path="storage.redisToken" placeholder="留空保持现有令牌" />
+                      <small class="hint" data-hint="storage.redisToken"></small>
+                    </label>
+                  </div>
+                  <label class="check">
+                    <input type="checkbox" data-clear="storage.redisToken" />
+                    清除已保存的 Redis Token
+                  </label>
+                </fieldset>
+
+                <fieldset class="group">
+                  <legend>微信机器人</legend>
+                  <div class="grid two">
+                    <label class="field">
+                      <span>bot_token <b class="req">*</b></span>
+                      <input type="password" data-path="wechat.botToken" placeholder="iLink 机器人令牌" />
+                      <small class="hint" data-hint="wechat.botToken"></small>
+                    </label>
+                    <label class="field">
+                      <span>iLink 基座地址 <b class="req">*</b></span>
+                      <input type="url" data-path="wechat.baseUrl" placeholder="https://ilinkai.weixin.qq.com" />
+                    </label>
+                    <label class="field">
+                      <span>ilink_bot_id <b class="req">*</b></span>
+                      <input type="text" data-path="wechat.ilinkBotId" />
+                    </label>
+                    <label class="field">
+                      <span>ilink_user_id <b class="req">*</b></span>
+                      <input type="text" data-path="wechat.ilinkUserId" />
+                    </label>
+                  </div>
+                  <label class="check">
+                    <input type="checkbox" data-clear="wechat.botToken" />
+                    清除已保存的 bot_token
+                  </label>
+                </fieldset>
+
+                <div class="actions">
+                  <button class="btn btn-primary" type="submit">保存必填配置</button>
+                  <span class="save-state muted"></span>
+                </div>
+              </form>
+            </section>
+
+            <section id="panel-model" class="panel hidden">
+              <form id="form-model" class="card form" autocomplete="off">
+                <div class="card-head">
+                  <div>
+                    <h2>模型与提示词</h2>
+                    <p class="muted">控制生成参数与上下文预算，不影响前置提示词的固定注入。</p>
+                  </div>
+                </div>
+                <div class="grid three">
+                  <label class="field">
+                    <span>temperature</span>
+                    <input type="number" data-path="deepseek.temperature" min="0" max="2" step="0.1" />
+                  </label>
+                  <label class="field">
+                    <span>max_tokens</span>
+                    <input type="number" data-path="deepseek.maxTokens" min="64" max="8192" step="64" />
+                  </label>
+                  <label class="field">
+                    <span>请求超时（毫秒）</span>
+                    <input type="number" data-path="deepseek.timeoutMs" min="5000" max="180000" step="1000" />
+                  </label>
+                  <label class="field">
+                    <span>工具调用轮数上限</span>
+                    <input type="number" data-path="deepseek.maxToolRounds" min="1" max="5" step="1" />
+                  </label>
+                  <label class="field">
+                    <span>历史消息条数</span>
+                    <input type="number" data-path="prompt.maxHistoryMessages" min="2" max="100" step="1" />
+                  </label>
+                  <label class="field">
+                    <span>上下文最大字符数</span>
+                    <input type="number" data-path="prompt.maxContextChars" min="4000" max="200000" step="1000" />
+                  </label>
+                </div>
+                <label class="check">
+                  <input type="checkbox" data-path="deepseek.stream" />
+                  默认使用流式响应
+                </label>
+                <label class="field">
+                  <span>前置提示词</span>
+                  <textarea data-path="prompt.systemPrompt" rows="10" maxlength="20000"></textarea>
+                </label>
+                <div class="actions">
+                  <button class="btn btn-primary" type="submit">保存模型配置</button>
+                  <span class="save-state muted"></span>
+                </div>
+              </form>
+            </section>
+
+            <section id="panel-memory-config" class="panel hidden">
+              <form id="form-memory" class="card form" autocomplete="off">
+                <div class="card-head">
+                  <div>
+                    <h2>记忆引擎</h2>
+                    <p class="muted">记忆去重合并、重要度排序、容量与过期淘汰均在此配置。</p>
+                  </div>
+                </div>
+                <div class="grid three">
+                  <label class="field">
+                    <span>单用户记忆容量</span>
+                    <input type="number" data-path="memory.maxItems" min="10" max="1000" step="10" />
+                  </label>
+                  <label class="field">
+                    <span>过期天数</span>
+                    <input type="number" data-path="memory.ttlDays" min="1" max="3650" step="1" />
+                  </label>
+                  <label class="field">
+                    <span>摘要最大字符</span>
+                    <input type="number" data-path="memory.summaryMaxChars" min="200" max="4000" step="100" />
+                  </label>
+                  <label class="field">
+                    <span>摘要模式</span>
+                    <select data-path="memory.summaryMode">
+                      <option value="auto">自动（条目多时用模型）</option>
+                      <option value="model">始终使用模型压缩</option>
+                      <option value="off">结构化摘要</option>
+                    </select>
+                  </label>
+                  <label class="field">
+                    <span>摘要条目上限</span>
+                    <input type="number" data-path="memory.summaryTopK" min="5" max="100" step="5" />
+                  </label>
+                  <label class="field">
+                    <span>摘要最低重要度</span>
+                    <input type="number" data-path="memory.minImportance" min="1" max="5" step="1" />
+                  </label>
+                  <label class="field">
+                    <span>同类合并阈值</span>
+                    <input type="number" data-path="memory.similarityThreshold" min="0.4" max="0.99" step="0.01" />
+                  </label>
+                  <label class="field">
+                    <span>结束时提炼条数上限</span>
+                    <input type="number" data-path="memory.extractMaxItems" min="1" max="30" step="1" />
+                  </label>
+                  <label class="check field-check">
+                    <input type="checkbox" data-path="memory.autoExtractOnEnd" />
+                    会话结束时自动提炼记忆
+                  </label>
+                </div>
+                <div class="actions">
+                  <button class="btn btn-primary" type="submit">保存记忆配置</button>
+                  <span class="save-state muted"></span>
+                </div>
+              </form>
+            </section>
+
+            <section id="panel-session-config" class="panel hidden">
+              <form id="form-session" class="card form" autocomplete="off">
+                <div class="card-head">
+                  <div>
+                    <h2>会话策略</h2>
+                    <p class="muted">控制会话有效期、空闲超时、轮数上限与记录保留时长。</p>
+                  </div>
+                </div>
+                <div class="grid three">
+                  <label class="field">
+                    <span>会话有效期（分钟）</span>
+                    <input type="number" data-path="session.ttlMinutes" min="1" max="10080" step="1" />
+                  </label>
+                  <label class="field">
+                    <span>空闲超时（分钟）</span>
+                    <input type="number" data-path="session.idleTimeoutMinutes" min="1" max="10080" step="1" />
+                  </label>
+                  <label class="field">
+                    <span>单会话最大轮数</span>
+                    <input type="number" data-path="session.maxTurns" min="1" max="500" step="1" />
+                  </label>
+                  <label class="field">
+                    <span>单条输入最大字符</span>
+                    <input type="number" data-path="session.maxInputChars" min="100" max="20000" step="100" />
+                  </label>
+                  <label class="field">
+                    <span>已结束会话保留天数</span>
+                    <input type="number" data-path="session.retentionDays" min="1" max="365" step="1" />
+                  </label>
+                </div>
+                <div class="actions">
+                  <button class="btn btn-primary" type="submit">保存会话策略</button>
+                  <span class="save-state muted"></span>
+                </div>
+              </form>
+            </section>
+
+            <section id="panel-wechat" class="panel hidden">
+              <form id="form-wechat" class="card form" autocomplete="off">
+                <div class="card-head">
+                  <div>
+                    <h2>微信机器人（iLink 协议）</h2>
+                    <p class="muted">与 wechatbot.dev 协议对齐：长轮询取消息、context_token 续接、打字状态与主动发送。</p>
+                  </div>
+                </div>
+                <div class="grid two">
+                  <label class="field">
+                    <span>bot_token <b class="req">*</b></span>
+                    <input type="password" data-path="wechat.botToken" placeholder="留空保持现有令牌" />
+                    <small class="hint" data-hint="wechat.botToken"></small>
+                  </label>
+                  <label class="field">
+                    <span>iLink 基座地址 <b class="req">*</b></span>
+                    <input type="url" data-path="wechat.baseUrl" />
+                  </label>
+                  <label class="field">
+                    <span>ilink_bot_id <b class="req">*</b></span>
+                    <input type="text" data-path="wechat.ilinkBotId" />
+                  </label>
+                  <label class="field">
+                    <span>ilink_user_id <b class="req">*</b></span>
+                    <input type="text" data-path="wechat.ilinkUserId" />
+                  </label>
+                  <label class="field">
+                    <span>channel_version</span>
+                    <input type="text" data-path="wechat.channelVersion" placeholder="2.0.0" />
+                  </label>
+                  <label class="field">
+                    <span>context_token 有效期（小时）</span>
+                    <input type="number" data-path="wechat.contextTokenTtlHours" min="1" max="720" step="1" />
+                  </label>
+                  <label class="field">
+                    <span>长轮询超时（秒）</span>
+                    <input type="number" data-path="wechat.pollTimeoutSeconds" min="5" max="120" step="1" />
+                  </label>
+                  <label class="field">
+                    <span>CDN 基地址</span>
+                    <input type="url" data-path="wechat.cdnBaseUrl" />
+                  </label>
+                </div>
+                <label class="check">
+                  <input type="checkbox" data-path="wechat.typingEnabled" />
+                  发送“正在输入”状态
+                </label>
+                <label class="check">
+                  <input type="checkbox" data-path="wechat.autoSend" />
+                  收到消息后自动回复（否则由调用方主动发送）
+                </label>
+                <label class="check">
+                  <input type="checkbox" data-clear="wechat.botToken" />
+                  清除已保存的 bot_token
+                </label>
+                <div class="actions">
+                  <button class="btn btn-primary" type="submit">保存微信配置</button>
+                  <button class="btn btn-ghost" data-action="test-wechat" type="button">测试连通</button>
+                  <span class="save-state muted"></span>
+                </div>
+                <div id="wechat-test" class="notice hidden"></div>
+              </form>
+            </section>
+
+            <section id="panel-security" class="panel hidden">
+              <div class="card">
+                <div class="card-head">
+                  <div>
+                    <h2>安全密钥（Passkey）</h2>
+                    <p class="muted">支持注册多个安全密钥；至少保留一个，删除当前使用的密钥会被拒绝。</p>
+                  </div>
+                  <button class="btn btn-ghost" data-action="refresh-security" type="button">刷新</button>
+                </div>
+                <div class="row tight">
+                  <input id="passkey-label" type="text" maxlength="60" placeholder="新密钥名称，例如 iPhone / YubiKey" />
+                  <button class="btn" data-action="add-passkey" type="button">添加安全密钥</button>
+                </div>
+                <ul id="passkey-list" class="list"></ul>
+                <p id="security-meta" class="muted small"></p>
+              </div>
+
+              <div class="card">
+                <div class="card-head">
+                  <div>
+                    <h2>一次性配置链接</h2>
+                    <p class="muted">
+                      通过该链接可注册新的安全密钥。链接只能使用一次，注册成功后立即失效；可同时存在多个有效链接。
+                    </p>
+                  </div>
+                </div>
+                <div class="grid two">
+                  <label class="field">
+                    <span>链接名称</span>
+                    <input id="link-label" type="text" maxlength="60" value="配置链接" />
+                  </label>
+                  <label class="field">
+                    <span>有效期（分钟）</span>
+                    <input id="link-ttl" type="number" min="5" max="1440" step="5" value="30" />
+                  </label>
+                </div>
+                <div class="actions">
+                  <button class="btn btn-primary" data-action="create-link" type="button">生成安全链接</button>
+                </div>
+                <div id="link-result" class="secret-box hidden"></div>
+                <ul id="link-list" class="list"></ul>
+              </div>
+            </section>
+
+            <section id="panel-memories" class="panel hidden">
+              <div class="card">
+                <div class="card-head">
+                  <div>
+                    <h2>记忆库</h2>
+                    <p class="muted">查看、检索、手动补充或删除某个用户的长期记忆。</p>
+                  </div>
+                </div>
+                <div class="row tight">
+                  <input id="memory-user" type="text" placeholder="user_id（微信用户或测试用户）" />
+                  <input id="memory-query" type="text" placeholder="关键词过滤" />
+                  <button class="btn" data-action="load-memories" type="button">加载</button>
+                </div>
+                <div class="row tight">
+                  <input id="memory-content" type="text" maxlength="500" placeholder="新增记忆内容" />
+                  <select id="memory-kind">
+                    <option value="fact">事实</option>
+                    <option value="preference">偏好</option>
+                    <option value="goal">目标</option>
+                    <option value="constraint">约束</option>
+                    <option value="event">事件</option>
+                  </select>
+                  <input id="memory-importance" type="number" min="1" max="5" step="1" value="3" />
+                  <button class="btn btn-primary" data-action="add-memory" type="button">保存记忆</button>
+                </div>
+                <ul id="memory-list" class="list"></ul>
+              </div>
+            </section>
+
+            <section id="panel-sessions" class="panel hidden">
+              <div class="card">
+                <div class="card-head">
+                  <div>
+                    <h2>会话记录</h2>
+                    <p class="muted">会话按更新时间倒序展示，点击可查看完整消息。</p>
+                  </div>
+                </div>
+                <div class="row tight">
+                  <input id="session-user" type="text" placeholder="按 user_id 过滤（留空查看全部）" />
+                  <button class="btn" data-action="load-sessions" type="button">刷新</button>
+                </div>
+                <ul id="session-list" class="list"></ul>
+                <div id="session-detail" class="detail hidden"></div>
+              </div>
+            </section>
+
+            <section id="panel-chat" class="panel hidden">
+              <div class="card chat-card">
+                <div class="card-head">
+                  <div>
+                    <h2>对话测试</h2>
+                    <p class="muted">直接调用统一会话接口，验证前置提示词、记忆注入与工具调用。</p>
+                  </div>
+                </div>
+                <div class="row tight">
+                  <input id="chat-user" type="text" value="demo-user" placeholder="user_id" />
+                  <button class="btn btn-ghost" data-action="chat-new" type="button">新会话</button>
+                  <button class="btn btn-ghost" data-action="chat-end" type="button">结束会话</button>
+                  <span id="chat-session" class="pill">未开始</span>
+                </div>
+                <label class="check">
+                  <input id="chat-stream" type="checkbox" checked />
+                  使用流式输出（SSE）
+                </label>
+                <div id="chat-log" class="chat-log"></div>
+                <form id="chat-form" class="chat-input-row">
+                  <textarea id="chat-input" rows="2" placeholder="输入消息，Enter 发送，Shift+Enter 换行"></textarea>
+                  <button class="btn btn-primary" type="submit">发送</button>
+                </form>
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast hidden"></div>
+    <script src="/assets/app.js" type="module"></script>
+  </body>
+</html>
